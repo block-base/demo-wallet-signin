@@ -11,10 +11,6 @@
       <CHeading text-align="center" mb="4">Wallet Integration Demo</CHeading>
       <CFlex justify="center" direction="column" align="center">
         <CBox mb="3">
-          <CButton variant-color="gray" @click="connectMetamask">
-            Connect Metamask
-          </CButton>
-
           <CButton variant-color="gray" @click="getAccountFromSignature">
             Get Account from Signature
           </CButton>
@@ -31,6 +27,8 @@ import {
   CFlex,
   CHeading
 } from '@chakra-ui/vue'
+
+import Web3 from "web3";
 
 export default {
   name: 'IndexPage',
@@ -68,25 +66,18 @@ export default {
       return this.$toggleColorMode
     }
   },
-  // TODO: ここのロジックのみを実装する
-  methods: {
-    // Criteria:
-    // クリックするとMetamaskの接続リクエストが表示される
-    // 接続するとconsole.logにaddressが表示される
-    connectMetamask () {
-      const address = "result goes here"
-      console.log("connectMetamask")
-      console.log("result: ", address)
-    },
 
-    // Criteria:
-    // クリックするとMetamaskの署名リクエストが表示される
-    // 署名を行うとMetamaskの署名が発生する
-    // 署名からAddressを復元してconsole.logに表示する
-    getAccountFromSignature () {
-      const address = "result goes here"
-      console.log("getAccountFromSignature")
-      console.log("result: ", address)
+  methods: {
+    async getAccountFromSignature () {
+      const dataToSign = "data";
+      await window.ethereum.enable()
+      const web3 = new Web3(window.ethereum)
+      const [address] = await web3.eth.getAccounts();
+      console.log("address: ", address);
+      const signature = await web3.eth.personal.sign(dataToSign, address)
+      console.log("signature: ", signature);
+      const recovered = await web3.eth.personal.ecRecover(dataToSign, signature);
+      console.log("recovered: ", recovered)
     }
   }
 }
