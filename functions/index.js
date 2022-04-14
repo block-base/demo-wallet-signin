@@ -7,62 +7,46 @@ admin.initializeApp()
 
 const secret = 'secret' // for demo
 
-const cors = require('cors')({ origin: true })
+exports.getChallenge = functions.https.onCall((data, _context) => {
+  const { walletAddress } = data
 
-exports.getChallenge = functions.https.onRequest((request, response) => {
-  cors(request, response, () => {
-    const { walletAddress } = request.body
+  // チャレンジの作成
+  const payload = {
+    exp: Date.now() + 1000 * 60 * 10, // valid for 10 minutes
+    sub: walletAddress,
+  }
 
-    // チャレンジの作成
-    const payload = {
-      exp: Date.now() + 1000 * 60 * 10, // valid for 10 minutes
-      sub: walletAddress,
-    }
-    const challenge = jwt.sign(payload, secret)
-    response.send(challenge)
-  })
+  const challenge = jwt.sign(payload, secret)
+  return challenge
 })
 
-exports.signInWithWeb3Wallet = functions.https.onRequest(
-  (request, response) => {
-    cors(request, response, async () => {
-      const { signature, walletAddress, challenge } = request.body
+exports.signInWithWeb3Wallet = functions.https.onCall(
+  async (data, _context) => {
+    const { signature, walletAddress, challenge } = data
 
-      // チャレンジの検証
-      const challengeData = jwt.verify(challenge, secret)
-      if (!challengeData.exp || challengeData.exp < Date.now()) {
-        throw new functions.https.HttpsError(
-          'deadline-exceeded',
-          'The function must be called with non expired challenge'
-        )
-      }
+    // チャレンジの検証
+    const challengeData = jwt.verify(challenge, secret)
+    if (!challengeData.exp || challengeData.exp < Date.now()) {
+      throw new functions.https.HttpsError(
+        'deadline-exceeded',
+        'The function must be called with non expired challenge'
+      )
+    }
 
-      // 署名の検証
-      const recoveredAddress = ethers.utils.verifyMessage(challenge, signature)
-      if (walletAddress.toLowerCase() !== recoveredAddress.toLowerCase()) {
-        throw new functions.https.HttpsError(
-          'invalid-argument',
-          'The function must be called with valid signature for the wallet Address'
-        )
-      }
+    // 署名の検証
+    const recoveredAddress = ethers.utils.verifyMessage(challenge, signature)
+    if (walletAddress.toLowerCase() !== recoveredAddress.toLowerCase()) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'The function must be called with valid signature for the wallet Address'
+      )
+    }
 
-      // 認証トークンの発行
-      const customToken = await admin
-        .auth()
-        .createCustomToken(walletAddress, { walletAddress })
-      response.send(customToken)
-    })
+    // 認証トークンの発行
+    const customToken = await admin
+      .auth()
+      .createCustomToken(walletAddress, { walletAddress })
+
+    return customToken
   }
 )
-
-exports.verifyIdToken = functions.https.onRequest((request, response) => {
-  cors(request, response, async () => {
-    const { idToken } = request.body
-
-    // ID Tokenの検証
-    // こちらの処理はスクラッチ実装を行うことも可能です
-    // https://firebase.google.com/docs/auth/admin/verify-id-tokens?hl=ja
-    const result = await admin.auth().verifyIdToken(idToken)
-    response.send(result)
-  })
-})
