@@ -29,6 +29,7 @@ import {
 } from '@chakra-ui/vue'
 
 import Web3 from "web3";
+import axios from "axios"
 
 export default {
   name: 'IndexPage',
@@ -69,15 +70,27 @@ export default {
 
   methods: {
     async getAccountFromSignature () {
-      const dataToSign = "data";
+
+
       await window.ethereum.enable()
       const web3 = new Web3(window.ethereum)
       const [address] = await web3.eth.getAccounts();
-      console.log("address: ", address);
-      const signature = await web3.eth.personal.sign(dataToSign, address)
+
+      // wallet addressの取得
+      const walletAddress = address
+      console.log("walletAddress: ", walletAddress);
+
+      // サーバーサイドから署名のチャレンジの取得（このチャレンジはセッションやjwtなどを使って不正に署名を再利用されないようにするもの）
+      const { data: challenge } = await axios.post("http://localhost:5001/blockbase-sandbox-team/us-central1/getChallenge", {walletAddress})
+      const dataToSign = challenge;
+
+      // 署名を行う
+      const signature = await web3.eth.personal.sign(dataToSign, walletAddress)
       console.log("signature: ", signature);
-      const recovered = await web3.eth.personal.ecRecover(dataToSign, signature);
-      console.log("recovered: ", recovered)
+
+      // サーバーサイドに署名の検証を送り、検証に成功するとjwtを取得することができる
+      const {data: customToken} = await axios.post("http://localhost:5001/blockbase-sandbox-team/us-central1/signInWithWeb3Wallet", {signature, walletAddress, challenge})
+      console.log("customToken: ", customToken)
     }
   }
 }
