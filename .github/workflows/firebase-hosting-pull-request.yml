@@ -1,0 +1,15 @@
+name: Firebase Deploy
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: yarn
+      - run: yarn build
+      - run: yarn firebase use blockbase-sandbox-team --token=${{ secrets.FIREBASE_TOKEN }}
+      - run: yarn firebase deploy --token=${{ secrets.FIREBASE_TOKEN }}

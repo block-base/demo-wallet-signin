@@ -8,73 +8,13 @@
       flex-dir="column"
       justify-content="center"
     >
-      <CHeading text-align="center" mb="4"> ⚡️ Hello chakra-ui/vue </CHeading>
+      <CHeading text-align="center" mb="4">Wallet Integration Demo</CHeading>
       <CFlex justify="center" direction="column" align="center">
         <CBox mb="3">
-          <CIconButton
-            mr="3"
-            :icon="colorMode === 'light' ? 'moon' : 'sun'"
-            :aria-label="`Switch to ${
-              colorMode === 'light' ? 'dark' : 'light'
-            } mode`"
-            @click="toggleColorMode"
-          />
-          <CButton left-icon="info" variant-color="blue" @click="showToast">
-            Show Toast
+          <CButton variant-color="gray" @click="getAccountFromSignature">
+            Get Account from Signature
           </CButton>
         </CBox>
-        <CAvatarGroup>
-          <CAvatar
-            name="Evan You"
-            alt="Evan You"
-            src="https://pbs.twimg.com/profile_images/1206997998900850688/cTXTQiHm_400x400.jpg"
-          >
-            <CAvatarBadge size="1.0em" bg="green.500" />
-          </CAvatar>
-          <CAvatar
-            name="Jonathan Bakebwa"
-            alt="Jonathan Bakebwa"
-            src="https://res.cloudinary.com/xtellar/image/upload/v1572857445/me_zqos4e.jpg"
-          >
-            <CAvatarBadge size="1.0em" bg="green.500" />
-          </CAvatar>
-          <CAvatar
-            name="Segun Adebayo"
-            alt="Segun Adebayo"
-            src="https://pbs.twimg.com/profile_images/1169353373012897802/skPUWd6e_400x400.jpg"
-          >
-            <CAvatarBadge size="1.0em" bg="green.500" />
-          </CAvatar>
-          <CAvatar src="pop">
-            <CAvatarBadge size="1.0em" border-color="papayawhip" bg="tomato" />
-          </CAvatar>
-        </CAvatarGroup>
-        <CButton
-          left-icon="close"
-          variant-color="red"
-          mt="3"
-          @click="showModal = true"
-        >
-          Delete Account
-        </CButton>
-        <CModal :is-open="showModal">
-          <CModalOverlay />
-          <CModalContent>
-            <CModalHeader>Are you sure?</CModalHeader>
-            <CModalBody>Deleting user cannot be undone</CModalBody>
-            <CModalFooter>
-              <CButton @click="showModal = false"> Cancel </CButton>
-              <CButton
-                margin-left="3"
-                variant-color="red"
-                @click="showModal = false"
-              >
-                Delete User
-              </CButton>
-            </CModalFooter>
-            <CModalCloseButton @click="showModal = false" />
-          </CModalContent>
-        </CModal>
       </CFlex>
     </CBox>
   </div>
@@ -84,37 +24,21 @@
 import {
   CBox,
   CButton,
-  CAvatarGroup,
-  CAvatar,
-  CAvatarBadge,
-  CModal,
-  CModalContent,
-  CModalOverlay,
-  CModalHeader,
-  CModalFooter,
-  CModalBody,
-  CModalCloseButton,
-  CIconButton,
   CFlex,
   CHeading
 } from '@chakra-ui/vue'
+
+import { signInWithCustomToken } from "firebase/auth";
+import { httpsCallable } from "firebase/functions";
+import { initFirebase } from "../lib/firebase"
+import { initWeb3 } from "../lib/web3"
 
 export default {
   name: 'IndexPage',
   components: {
     CBox,
     CButton,
-    CAvatarGroup,
-    CAvatar,
-    CAvatarBadge,
-    CModal,
-    CModalContent,
-    CModalOverlay,
-    CModalHeader,
-    CModalFooter,
-    CModalBody,
-    CModalCloseButton,
-    CIconButton,
+
     CFlex,
     CHeading
   },
@@ -145,15 +69,38 @@ export default {
       return this.$toggleColorMode
     }
   },
+
   methods: {
-    showToast () {
-      this.$toast({
-        title: 'Account created.',
-        description: "We've created your account for you.",
-        status: 'success',
-        duration: 10000,
-        isClosable: true
-      })
+    async getAccountFromSignature () {
+
+      const web3 = await initWeb3();
+      const [address] = await web3.eth.getAccounts();
+
+      // wallet addressの取得
+      const walletAddress = address
+      console.log("walletAddress: ", walletAddress);
+
+      const {functions, auth} = initFirebase();
+
+      // サーバーサイドから署名のチャレンジの取得（このチャレンジはセッションやjwtなどを使って不正に署名を再利用されないようにするもの）
+      const { data: challenge }  = await httpsCallable(functions, "getChallenge")({walletAddress});
+
+      // 署名を行う
+      const signature = await web3.eth.personal.sign(challenge, walletAddress)
+      console.log("signature: ", signature);
+
+      // サーバーサイドに署名の検証を送り、検証に成功するとcustomTokenを取得することができる
+       const { data: customToken }  = await httpsCallable(functions, "signInWithWeb3Wallet")({signature, walletAddress, challenge});
+      console.log("customToken: ", customToken)
+
+      // サーバーから帰ってきたcustomTokenを使用しfirebaseにログインする
+
+      await signInWithCustomToken(auth, customToken);
+
+      // ID Tokenの取得、このIDトークンを他のエンドポイントのヘッダに入れて投げるようにします
+      const idToken = await auth.currentUser.getIdToken()
+      console.log("idToken", idToken)
+
     }
   }
 }
