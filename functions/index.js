@@ -47,8 +47,22 @@ exports.signInWithWeb3Wallet = functions.https.onRequest(
       }
 
       // 認証トークンの発行
-      const customToken = await admin.auth().createCustomToken(walletAddress)
+      const customToken = await admin
+        .auth()
+        .createCustomToken(walletAddress, { walletAddress })
       response.send(customToken)
     })
   }
 )
+
+exports.verifyIdToken = functions.https.onRequest((request, response) => {
+  cors(request, response, async () => {
+    const { idToken } = request.body
+
+    // ID Tokenの検証
+    // こちらの処理はスクラッチ実装を行うことも可能です
+    // https://firebase.google.com/docs/auth/admin/verify-id-tokens?hl=ja
+    const result = await admin.auth().verifyIdToken(idToken)
+    response.send(result)
+  })
+})

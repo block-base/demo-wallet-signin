@@ -30,6 +30,23 @@ import {
 
 import Web3 from "web3";
 import axios from "axios"
+import {initializeApp} from "firebase/app"
+import { getAuth, signInWithCustomToken, connectAuthEmulator } from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCkGB_HRY59EWwQezpDH8SI7fNjIwafZ_s",
+  authDomain: "blockbase-sandbox-team.firebaseapp.com",
+  databaseURL: "https://blockbase-sandbox-team.firebaseio.com",
+  projectId: "blockbase-sandbox-team",
+  storageBucket: "blockbase-sandbox-team.appspot.com",
+  messagingSenderId: "837371952785",
+  appId: "1:837371952785:web:439973a258ffd19ac5c930",
+  measurementId: "G-HE0GZS4EC5"
+};
+
+initializeApp(firebaseConfig);
+const auth = getAuth();
+connectAuthEmulator(auth, "http://localhost:9099");
 
 export default {
   name: 'IndexPage',
@@ -88,9 +105,21 @@ export default {
       const signature = await web3.eth.personal.sign(dataToSign, walletAddress)
       console.log("signature: ", signature);
 
-      // サーバーサイドに署名の検証を送り、検証に成功するとjwtを取得することができる
+      // サーバーサイドに署名の検証を送り、検証に成功するとcustomTokenを取得することができる
       const {data: customToken} = await axios.post("http://localhost:5001/blockbase-sandbox-team/us-central1/signInWithWeb3Wallet", {signature, walletAddress, challenge})
       console.log("customToken: ", customToken)
+
+      // サーバーから帰ってきたcustomTokenを使用しfirebaseにログインする
+      await signInWithCustomToken(auth, customToken);
+
+      // ID Tokenの取得
+      const idToken = await auth.currentUser.getIdToken()
+      console.log("idToken", idToken)
+
+      // こちらのIDトークンはサーバーサイドでの検証が可能です
+      const {data: result} = await axios.post("http://localhost:5001/blockbase-sandbox-team/us-central1/verifyIdToken", {idToken})
+      console.log(result)
+
     }
   }
 }
