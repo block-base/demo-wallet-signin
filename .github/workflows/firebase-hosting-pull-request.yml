@@ -11,5 +11,5 @@ jobs:
       - uses: actions/checkout@v2
       - run: yarn
       - run: yarn build
-      - run: yarn firebase use blockbase-sandbox-team --token=${{ secrets.FIREBASE_TOKEN }}
-      - run: yarn firebase deploy --token=${{ secrets.FIREBASE_TOKEN }}
+      - run: yarn firebase use blockbase-sandbox-team --token=${{ secrets.FIREBASE_SERVICE_ACCOUNT_BLOCKBASE_SANDBOX_TEAM }}
+      - run: yarn firebase deploy --token=${{ secrets.FIREBASE_SERVICE_ACCOUNT_BLOCKBASE_SANDBOX_TEAM }}

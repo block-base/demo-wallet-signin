@@ -19,7 +19,7 @@ yarn dev
 run functions
 
 ```
-yarn firebase emulators:start
+yarn firebase emulators:start --only auth,functions
 ```
 
 ### Connect cloud function on firebase
